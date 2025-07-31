@@ -1,0 +1,51 @@
+name: Train RL Agent and Deploy Results
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths: [ 'src/**', 'pyproject.toml' ]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly on Monday at 6 AM UTC
+
+jobs:
+  train-and-deploy:
+    runs-on: macos-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          version: "latest"
+          
+      - name: Set up Python
+        run: uv python install 3.12
+        
+      - name: Create virtual environment
+        run: uv venv --python 3.12
+        
+      - name: Install dependencies
+        run: uv pip install mlx numpy tqdm matplotlib gymnasium plotly jinja2
+          
+      - name: Train RL Agent
+        run: |
+          source .venv/bin/activate
+          python src/train.py --episodes 500 --output docs/results/
+          
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+        
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: './docs'
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
