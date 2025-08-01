@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLX RL Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f8f9fa;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .chart { 
+            margin: 20px 0; 
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-value { font-size: 24px; font-weight: bold; color: #007bff; }
+        .stat-label { font-size: 14px; color: #6c757d; }
+        .loading { text-align: center; padding: 40px; color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 MLX Reinforcement Learning Dashboard</h1>
+            <p>Real-time training results powered by Apple's MLX framework</p>
+        </div>
+        
+        <div id="loading" class="loading">
+            Loading training results...
+        </div>
+        
+        <div id="content" style="display: none;">
+            <div class="stats" id="stats"></div>
+            <div id="reward-chart" class="chart"></div>
+            <div id="episode-length-chart" class="chart"></div>
+            <p style="text-align: center; color: #6c757d;">
+                Last updated: <span id="last-updated"></span>
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        async function loadResults() {
+            try {
+                const response = await fetch('./results/latest_run.json');
+                const data = await response.json();
+                
+                // Hide loading, show content
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+                
+                // Show statistics
+                const stats = document.getElementById('stats');
+                const avgReward = data.rewards.reduce((a, b) => a + b, 0) / data.rewards.length;
+                const maxReward = Math.max(...data.rewards);
+                const totalEpisodes = data.total_episodes;
+                
+                stats.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-value">${totalEpisodes}</div>
+                        <div class="stat-label">Total Episodes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${avgReward.toFixed(2)}</div>
+                        <div class="stat-label">Average Reward</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${maxReward.toFixed(2)}</div>
+                        <div class="stat-label">Best Reward</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.framework}</div>
+                        <div class="stat-label">Framework</div>
+                    </div>
+                `;
+                
+                // Create reward chart
+                const rewardTrace = {
+                    x: data.episodes,
+                    y: data.rewards,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Episode Reward',
+                    line: { color: '#007bff' }
+                };
+                
+                Plotly.newPlot('reward-chart', [rewardTrace], {
+                    title: 'Training Progress - Episode Rewards',
+                    xaxis: { title: 'Episode' },
+                    yaxis: { title: 'Reward' }
+                });
+                
+                // Create episode length chart
+                const lengthTrace = {
+                    x: data.episodes,
+                    y: data.episode_lengths,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Episode Length',
+                    line: { color: '#28a745' }
+                };
+                
+                Plotly.newPlot('episode-length-chart', [lengthTrace], {
+                    title: 'Episode Lengths Over Time',
+                    xaxis: { title: 'Episode' },
+                    yaxis: { title: 'Steps' }
+                });
+                
+                // Update timestamp
+                document.getElementById('last-updated').textContent = 
+                    new Date(data.timestamp).toLocaleString();
+                    
+            } catch (error) {
+                document.getElementById('loading').innerHTML = `
+                    <h3>No training results yet</h3>
+                    <p>Trigger the GitHub Action workflow to start training and see results here.</p>
+                    <p><a href="../../actions" target="_blank">Go to Actions →</a></p>
+                `;
+            }
+        }
+        
+        loadResults();
+    </script>
+</body>
+</html>
